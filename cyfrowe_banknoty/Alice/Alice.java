@@ -107,6 +107,7 @@ public class Alice {
       dosBank.writeUTF("signbanknote");
 
       // wyslij banknoty
+      dosBank.writeInt(banknotes.size());
       sendBanknotes();
 
       // zamknij polaczenie z Bankiem

@@ -8,10 +8,20 @@ public class Bank {
   private DataInputStream dis; // strumien wejscia
   private DataOutputStream dos; // strumien wyjscia
 
-  private List<Banknote> banknotesList;
+  private ArrayList<Banknote> banknotesList;
 
   private void receiveBanknotes() {
+    // zczytaj ilosc banknotow, ktore ma Alice
     int banknotesListSize = dis.readInt();
+    // stworz liste banknotow dla Alice
+    banknotesList = new ArrayList<Banknote>(banknotesListSize);
+
+    for(Banknote greenback : banknotesList) {
+      banknotesList.add(new Banknote());
+    }
+
+    // to do
+    Random randomGenerator = new Random();
   }
 
   private void signBanknote() {
