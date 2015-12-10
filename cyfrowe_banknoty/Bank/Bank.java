@@ -1,0 +1,103 @@
+import java.io.*;
+import java.util.*;
+import java.net.*;
+
+public class Bank {
+  private int port;
+  private ServerSocket listeningSocket; // gniazdo no nasluchu
+  private DataInputStream dis; // strumien wejscia
+  private DataOutputStream dos; // strumien wyjscia
+
+  private List<Banknote> banknotesList;
+
+  private void receiveBanknotes() {
+    int banknotesListSize = dis.readInt();
+  }
+
+  private void signBanknote() {
+    receiveBanknotes();
+  }
+
+  private void checkBanknote() {
+
+  }
+
+  public void closeServer() {
+    try {
+      listeningSocket.close();
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  public void startListening() {
+    try {
+      // stworz gniazdo dla jednego klienta i zaakceptuj polaczenie
+      Socket socket = listeningSocket.accept();
+      // utworz strumienie wejsca i wyjscia
+      dis = new DataInputStream(socket.getInputStream());
+      dos = new DataOutputStream(socket.getOutputStream());
+      // dopoki polaczenie aktywne przyjmuj zadania
+      Boolean isConnectionActive = new Boolean("true");
+      while(isConnectionActive.booleanValue()) {
+        switch(dis.readUTF().toLowerCase()) {
+          case "signbanknote":
+            System.out.println("[Bank] Podpisuje banknot");
+            signBanknote();
+            break;
+          case "checkbanknote":
+            checkBanknote();
+            break;
+          case "closeconnection":
+            isConnectionActive = new Boolean("false");
+            break;
+          default:
+            System.out.println("Blad zadania.");
+        }
+      }
+      // zamknij dataStreamy
+      dis.close();
+      dos.close();
+      // zamknij gniazdo
+      socket.close();
+
+    } /*catch(EOFException exEOF) {
+      System.out.println("Strumien wejscia jest krotszy niz 4B.");
+    }*/ catch(IOException exIO) {
+      System.out.println("Blad strumienia.");
+    } /*catch(InterruptedException exIn) {
+      System.out.println("Watek zostal przerwany.");
+    }*/
+  }
+
+  public Bank(int _port) {
+    try {
+      port = _port;
+      // utworz gniazdo nasluchu i powiaz je z portem (bind)
+      listeningSocket= new ServerSocket(port);
+      // stworz liste banknotow
+      banknotesList = new ArrayList<Banknote>();
+    } catch(IOException ex) {
+      System.out.println("Blad tworzenia gniazda do nasluchu.");
+    }
+  }
+
+  public static void main(String[] args) {
+    // args[0] - nr portu
+    if (args.length < 1) {
+      System.out.println("Uzycie: Bank nr_portu");
+      return;
+    }
+    try {
+      // utworz Alice
+      Bank bank = new Bank(Integer.parseInt(args[0]));
+      System.out.println("[Bank] Czekam na polaczenie...");
+      //przelacz Alice na nasluchiwanie
+      bank.startListening();
+      bank.closeServer();
+    } catch (NumberFormatException exNF) {
+      System.out.println("Zly format portu.");
+    }
+    System.out.println("Bank zakonczyl dzialanie.");
+  }
+}
