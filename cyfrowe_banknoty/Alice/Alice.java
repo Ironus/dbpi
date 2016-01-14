@@ -1,5 +1,8 @@
 import java.io.*;
 import java.net.*;
+import java.security.*;
+import javax.crypto.*;
+import java.util.Base64;
 
 public class Alice {
   private InetAddress addrBank; // adres Banku
@@ -17,11 +20,70 @@ public class Alice {
   private Banknote[] banknotes; // tablica banknotow
   private Banknote banknote; // banknot wybrany przez Bank
 
-  private int[] identificationNumbers;
+  private Key publicKeyBank;
+
+  private int[] identificationNumbers; // nr identyfikacyjne Alice
+
+  private void getPublicKey() {
+    try {
+      String publicKeyString = dis.readUTF();
+      byte[] publicKeyByteArray = Base64.getDecoder().decode(publicKeyString);
+      X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyByteArray);
+      KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+      publicKeyBank = keyFactory.generatePublic(publicKeySpec);
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  private byte[] hide(byte[] message) {
+    try {
+      // stworz klase szyfrujaca i ustal parametry szyfrowania
+      Cipher cipher = Cipher.getInstance("RSA");
+      cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+
+      return cipher.doFinal(message);
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+  }
 
   private void sendBanknotes() {
+    // pobierz klucz publiczny banku
+    getPublicKey();
+    // dla kazdego banknotu
     for(Banknote greenback : banknotes) {
-      dos.writeInt(greenback.getValue());
+      // zakryj go i wyslij do banku
+      try {
+        // stworz tablice pomocnicza i wpisz do niej wartosc banknotu, a nastepnie
+        // zaszyfruj kluczem publicznym banku
+        byte[] temp = hide(greenback.getValueByteArray());
+        // wyslij do banku
+        dos.writeInt(temp.length);
+        dos.write(temp, 0, temp.length);
+
+        // wpisz do tablicy zaszyfrowany nr identyfikacyjny banknotu
+        temp = hide(greenback.getBanknoteNumberByteArray());
+        dos.writeInt(temp.length);
+        dos.write(temp, 0, temp.length);
+
+        // wez wszystkie lewe hashe, ukryj i wyslij
+        dos.writeInt(greenback.getIdentificationLeftHashes().length);
+        for(byte[] hash : greenback.getIdentificationLeftHashes()) {
+          temp = hide(hash);
+          dos.writeInt(temp.length);
+          dos.write(temp, 0, temp.length);
+        }
+
+        // wez wszystkie prawie hashe, ukryj i wyslij
+        for(byte[] hash : greenback.getIdentificationRightHashes()) {
+          temp = hide(hash);
+          dos.writeInt(temp.length);
+          dos.write(temp, 0, temp.length);
+        }
+      } catch(Exception e) {
+        e.printStackTrace();
+      }
     }
   }
 

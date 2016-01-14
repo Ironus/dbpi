@@ -4,6 +4,7 @@ import java.security.MessageDigest;
 
 public class Banknote implements Serializable {
   private int value; // kwota na banknocie
+  private int numberOfHashes; // ilosc zahaszowanych ciagow
   private int banknoteNumber; // nr identyfikacyjny banknotu
   private int[] identificationLeftXor; // niejawna lewa strona nr ID Alice
   private int[] identificationRightXor; // niejawna prawa strona nr ID Alice
@@ -155,6 +156,10 @@ public class Banknote implements Serializable {
 
   public void setValue(int _value) {
     value = _value;
+  }
+
+  public void setNumberOfHashes(int _numberOfHashes) {
+    numberOfHashes = _numberOfHashes;
   }
 
   public void setBanknoteNumber(int _banknoteNumber) {

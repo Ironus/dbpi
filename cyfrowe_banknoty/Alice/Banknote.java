@@ -129,8 +129,26 @@ public class Banknote implements Serializable {
     return value;
   }
 
+  public byte[] getValueByteArray() {
+    return new byte[] {
+      (byte)(value >>> 24),
+      (byte)(value >>> 16),
+      (byte)(value >>> 8),
+      (byte)value
+    };
+  }
+
   public int getBanknoteNumber() {
     return banknoteNumber;
+  }
+
+  public byte[] getBanknoteNumberByteArray() {
+    return new byte[] {
+      (byte)(banknoteNumber >>> 24),
+      (byte)(banknoteNumber >>> 16),
+      (byte)(banknoteNumber >>> 8),
+      (byte)banknoteNumber
+    };
   }
 
   public byte[][] getIdentificationLeftHashes() {

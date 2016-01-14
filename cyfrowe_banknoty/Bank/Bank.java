@@ -10,6 +10,25 @@ public class Bank {
 
   private ArrayList<Banknote> banknotesList;
 
+  private byte[] show() {
+    byte[] message;
+
+    try {
+      Cipher cipher = Cipher.getInstance("RSA");
+      cipher.init(Cipher.DECRYPT_MODE, privateKey);
+
+      message = cipher.doFinal(cBob);
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+
+    return message;
+  }
+
+  private int byteToInt(byte[] array) {
+    return array[0] << 24 | (array[1] & 0xFF) << 16 | (array[2] & 0xFF) << 8 | (array[3] & 0xFF);
+  }
+
   private void receiveBanknotes() {
     // zczytaj ilosc banknotow, ktore ma Alice
     int banknotesListSize = dis.readInt();
@@ -17,7 +36,37 @@ public class Bank {
     banknotesList = new ArrayList<Banknote>(banknotesListSize);
 
     for(Banknote greenback : banknotesList) {
-      banknotesList.add(new Banknote());
+      int length;
+      byte[] temp;
+
+      // stworz banknot
+      greenback = new Banknote();
+
+      // odkryj wartosc banknotu
+      length = dis.readInt();
+      greenback.setValue(byteToInt(show(dis.read(temp, 0, length))));
+
+      // odkryj nr banknotu
+      length = dis.readInt();
+      greenback.setBanknoteNumber(byteToInt(show(dis.read(temp, 0, length))));
+
+      // odkryj lewe hashe
+      greenback.setNumberOfHashes(dis.readInt());
+      byte[][]temp2;
+      for(int i = 0; i < greenback.numberOfHashes; i++) {
+        length = dis.readInt();
+        temp2[i] = show(dis.read(temp, 0, length));
+      }
+      greenback.setIdentificationLeftHashes(temp2);
+
+      // odkryj prawe hashe
+      for(int i = 0; i < greenback.numberOfHashes; i++) {
+        length = dis.readInt();
+        temp2[i] = show(dis.read(temp, 0, length));
+      }
+      greenback.setIdentificationRightHashes(temp2);
+
+      banknotesList.add(greenback);
     }
 
     // to do
