@@ -1,6 +1,11 @@
 import java.io.*;
 import java.util.*;
 import java.net.*;
+import java.security.*;
+import java.security.interfaces.*;
+import java.security.spec.*;
+import javax.crypto.Cipher;
+import java.util.Base64;
 
 public class Bank {
   private int port;
@@ -8,73 +13,186 @@ public class Bank {
   private DataInputStream dis; // strumien wejscia
   private DataOutputStream dos; // strumien wyjscia
 
-  private ArrayList<Banknote> banknotesList;
+  private ArrayList<Banknote> banknotesList; // lista banknotow
 
-  private byte[] show() {
-    byte[] message;
+  private KeyPairGenerator keyPairGenerator; // generator kluczy
+  private KeyPair keyPair; // wygenerowana para kluczy
+  private Key publicKey; // wygenerowany klucz publiczny
+  private Key privateKey; // wygenerowany klucz prywatny
+  private Cipher cipher; // klasa szyfrujaca
 
+  private int hiddenBanknote; // nr banknotu do podpisania
+
+  private void generateKeys() {
     try {
-      Cipher cipher = Cipher.getInstance("RSA");
+      // stworz generator kluczy i wygeneruj parę kluczy
+      keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+      keyPairGenerator.initialize(1024);
+      keyPair = keyPairGenerator.generateKeyPair();
+
+      // wyciagnij klucze z pary kluczy
+      publicKey = keyPair.getPublic();
+      privateKey = keyPair.getPrivate();
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  private void showBanknotes() {
+    
+  }
+
+  private void receiveHashes() {
+    System.out.println("[Bank] Odbieram dane potrzebne do odkrycia banknotow.");
+
+    for(int i = 0; i < banknotesList.size(); i++) {
+      // z wyjatkiem podpisywanego
+      if(i != hiddenBanknote) {
+        // stworz banknot pomocniczy
+        Banknote greenback = banknotesList.get(i);
+
+        // stworz zmienna i tablice pomocnicza
+        int length;
+        byte[] temp = null;
+
+        try {
+          // odbierz hashe S
+          length = dis.readInt();
+          temp = new byte[length];
+          dis.read(temp, 0, length);
+          // wpisz je do banknotu
+          greenback.setHashSKeys(temp);
+
+          // odbierz hashe B
+          length = dis.readInt();
+          temp = new byte[length];
+          dis.read(temp, 0, length);
+          // wpisz je do banknotu
+          greenback.setHashBKeys(temp);
+
+          // wyslij hashe T
+          length = dis.readInt();
+          temp = new byte[length];
+          dis.read(temp, 0, length);
+          // wpisz je do banknotu
+          greenback.setHashTKeys(temp);
+
+          // wyslij hashe C
+          length = dis.readInt();
+          temp = new byte[length];
+          dis.read(temp, 0, length);
+          // wpisz je do banknotu
+          greenback.setHashCKeys(temp);
+        } catch(Exception e) {
+          e.printStackTrace();
+        }
+
+        // podmien banknot w liscie na ten z dodanymi hashami
+        banknotesList.set(i, greenback);
+      }
+    }
+
+    System.out.println("[Bank] Odebrano.");
+  }
+
+  private byte[] show(byte[] codedMessage) {
+    // tablica z wynikiem
+    byte[] message = null;
+
+    // odszyfruj
+    try {
+      cipher = Cipher.getInstance("RSA");
       cipher.init(Cipher.DECRYPT_MODE, privateKey);
 
-      message = cipher.doFinal(cBob);
+      message = cipher.doFinal(codedMessage);
     } catch(Exception e) {
       e.printStackTrace();
     }
 
+    // zwroc
     return message;
   }
 
   private int byteToInt(byte[] array) {
-    return array[0] << 24 | (array[1] & 0xFF) << 16 | (array[2] & 0xFF) << 8 | (array[3] & 0xFF);
+    // zamien tablice byte na int i zwroc
+    return java.nio.ByteBuffer.wrap(array).getInt();
   }
 
   private void receiveBanknotes() {
-    // zczytaj ilosc banknotow, ktore ma Alice
-    int banknotesListSize = dis.readInt();
-    // stworz liste banknotow dla Alice
-    banknotesList = new ArrayList<Banknote>(banknotesListSize);
+    System.out.println("[Bank] Odbieram banknoty.");
+    try {
+      // odczytaj ilosc banknotow, ktore ma Alice
+      int banknotesListSize = dis.readInt();
+      // stworz liste banknotow dla Alice
+      banknotesList = new ArrayList<Banknote>(banknotesListSize);
 
-    for(Banknote greenback : banknotesList) {
-      int length;
-      byte[] temp;
+      for(int banknoteCounter = 0; banknoteCounter < banknotesListSize; banknoteCounter++) {
+        // stworz banknot
+        Banknote greenback = new Banknote();
 
-      // stworz banknot
-      greenback = new Banknote();
+        // odkryj wartosc banknotu
+        int length = dis.readInt();
+        byte[] temp = new byte[length];
+        dis.read(temp, 0, length);
+        greenback.setValue(byteToInt(show(temp)));
 
-      // odkryj wartosc banknotu
-      length = dis.readInt();
-      greenback.setValue(byteToInt(show(dis.read(temp, 0, length))));
-
-      // odkryj nr banknotu
-      length = dis.readInt();
-      greenback.setBanknoteNumber(byteToInt(show(dis.read(temp, 0, length))));
-
-      // odkryj lewe hashe
-      greenback.setNumberOfHashes(dis.readInt());
-      byte[][]temp2;
-      for(int i = 0; i < greenback.numberOfHashes; i++) {
+        // odkryj nr banknotu
         length = dis.readInt();
-        temp2[i] = show(dis.read(temp, 0, length));
-      }
-      greenback.setIdentificationLeftHashes(temp2);
+        temp = new byte[length];
+        dis.read(temp, 0, length);
+        greenback.setBanknoteNumber(byteToInt(show(temp)));
 
-      // odkryj prawe hashe
-      for(int i = 0; i < greenback.numberOfHashes; i++) {
-        length = dis.readInt();
-        temp2[i] = show(dis.read(temp, 0, length));
-      }
-      greenback.setIdentificationRightHashes(temp2);
+        // odkryj lewe hashe
+        greenback.setNumberOfHashes(dis.readInt());
+        byte[][]temp2 = new byte[greenback.getNumberOfHashes()][];
+        for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
+          length = dis.readInt();
+          temp = new byte[length];
+          dis.read(temp, 0, length);
+          temp2[i] = show(temp);
+        }
+        greenback.setIdentificationLeftHashes(temp2);
 
-      banknotesList.add(greenback);
+        // odkryj prawe hashe
+        for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
+          length = dis.readInt();
+          temp = new byte[length];
+          dis.read(temp, 0, length);
+          temp2[i] = show(temp);
+        }
+        greenback.setIdentificationRightHashes(temp2);
+
+        banknotesList.add(greenback);
+      }
+    } catch(Exception e) {
+      e.printStackTrace();
     }
 
-    // to do
-    Random randomGenerator = new Random();
+    System.out.println("[Bank] Odebrano.");
   }
 
   private void signBanknote() {
+    // odbierz wszystkie banknoty
     receiveBanknotes();
+
+    // wybierz, ktory banknot podpisac
+    System.out.println("[Bank] Wybieram banknot do podpisu.");
+    Random randomGenerator = new Random();
+    int hiddenBanknote = randomGenerator.nextInt(banknotesList.size());
+    System.out.println("[Bank] Wybrano banknot nr " + (hiddenBanknote + 1) + ". Odyslam nr banknotu.");
+
+    // odeslij wylosowany banknot
+    try {
+      dos.writeInt(hiddenBanknote);
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+
+    // odbierz hashe
+    receiveHashes();
+
+    // odkryj banknoty
+    showBanknotes();
   }
 
   private void checkBanknote() {
@@ -100,8 +218,14 @@ public class Bank {
       Boolean isConnectionActive = new Boolean("true");
       while(isConnectionActive.booleanValue()) {
         switch(dis.readUTF().toLowerCase()) {
+          case "sendpublickey":
+            System.out.println("[Bank] Wysylam klucz publiczny.");
+            String publicKeyString = Base64.getEncoder().encodeToString(publicKey.getEncoded());
+            dos.writeUTF(publicKeyString);
+            System.out.println("[Bank] Wyslano.");
+            break;
           case "signbanknote":
-            System.out.println("[Bank] Podpisuje banknot");
+            System.out.println("[Bank] Otrzymano zadanie podpisania banknotu.");
             signBanknote();
             break;
           case "checkbanknote":
@@ -136,6 +260,7 @@ public class Bank {
       listeningSocket= new ServerSocket(port);
       // stworz liste banknotow
       banknotesList = new ArrayList<Banknote>();
+      generateKeys();
     } catch(IOException ex) {
       System.out.println("Blad tworzenia gniazda do nasluchu.");
     }

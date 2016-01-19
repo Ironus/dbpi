@@ -126,8 +126,16 @@ public class Banknote implements Serializable {
     generateHashes();
   }
 
+  public int getValue() {
+    return value;
+  }
+
   public int getBanknoteNumber() {
     return banknoteNumber;
+  }
+
+  public int getNumberOfHashes() {
+    return numberOfHashes;
   }
 
   public byte[][] getIdentificationLeftHashes() {

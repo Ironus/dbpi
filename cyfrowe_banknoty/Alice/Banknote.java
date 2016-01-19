@@ -130,12 +130,7 @@ public class Banknote implements Serializable {
   }
 
   public byte[] getValueByteArray() {
-    return new byte[] {
-      (byte)(value >>> 24),
-      (byte)(value >>> 16),
-      (byte)(value >>> 8),
-      (byte)value
-    };
+    return java.nio.ByteBuffer.allocate(4).putInt(value).array();
   }
 
   public int getBanknoteNumber() {
@@ -143,12 +138,7 @@ public class Banknote implements Serializable {
   }
 
   public byte[] getBanknoteNumberByteArray() {
-    return new byte[] {
-      (byte)(banknoteNumber >>> 24),
-      (byte)(banknoteNumber >>> 16),
-      (byte)(banknoteNumber >>> 8),
-      (byte)banknoteNumber
-    };
+    return java.nio.ByteBuffer.allocate(4).putInt(banknoteNumber).array();
   }
 
   public byte[][] getIdentificationLeftHashes() {

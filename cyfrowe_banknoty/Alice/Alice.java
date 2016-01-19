@@ -2,6 +2,10 @@ import java.io.*;
 import java.net.*;
 import java.security.*;
 import javax.crypto.*;
+import java.security.*;
+import java.security.interfaces.*;
+import java.security.spec.*;
+import javax.crypto.Cipher;
 import java.util.Base64;
 
 public class Alice {
@@ -17,16 +21,55 @@ public class Alice {
   private DataInputStream disShop; // strumien wejscia od Sklepu
 
   private int value; // kwota na banknocie
+  private int signedBanknote; // indeks w tablicy podpisanego banknotu
   private Banknote[] banknotes; // tablica banknotow
   private Banknote banknote; // banknot wybrany przez Bank
 
-  private Key publicKeyBank;
+  private Key publicKeyBank;  // klucz publiczny banku
+  private Cipher cipher;  //klasa szyfrujaca
 
   private int[] identificationNumbers; // nr identyfikacyjne Alice
 
+  private void sendHashKeys() {
+    // stworz zmienna do przetrzymywania tablicy
+    byte[] temp = null;
+
+    try {
+      // dla kazdego banknotu
+      for(int i = 0; i < banknotes.length; i++) {
+        // z wyjatkiem podpisywanego
+        if(i != signedBanknote) {
+          // wyslij hashe S
+          temp = banknotes[i].getHashSKeys();
+          dosBank.writeInt(temp.length);
+          dosBank.write(temp, 0, temp.length);
+
+          // wyslij hashe B
+          temp = banknotes[i].getHashBKeys();
+          dosBank.writeInt(temp.length);
+          dosBank.write(temp, 0, temp.length);
+
+          // wyslij hashe T
+          temp = banknotes[i].getHashTKeys();
+          dosBank.writeInt(temp.length);
+          dosBank.write(temp, 0, temp.length);
+
+          // wyslij hashe C
+          temp = banknotes[i].getHashCKeys();
+          dosBank.writeInt(temp.length);
+          dosBank.write(temp, 0, temp.length);
+        }
+      }
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+  }
+
   private void getPublicKey() {
     try {
-      String publicKeyString = dis.readUTF();
+      System.out.println("[Alice] Odbieram klucz publiczny Banku.");
+      String publicKeyString = disBank.readUTF();
+      System.out.println("[Alice] Odebrano.");
       byte[] publicKeyByteArray = Base64.getDecoder().decode(publicKeyString);
       X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyByteArray);
       KeyFactory keyFactory = KeyFactory.getInstance("RSA");
@@ -37,54 +80,61 @@ public class Alice {
   }
 
   private byte[] hide(byte[] message) {
+    byte[] codedMessage = null;
     try {
       // stworz klase szyfrujaca i ustal parametry szyfrowania
-      Cipher cipher = Cipher.getInstance("RSA");
-      cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+      cipher = Cipher.getInstance("RSA");
+      cipher.init(Cipher.ENCRYPT_MODE, publicKeyBank);
 
-      return cipher.doFinal(message);
+      codedMessage = cipher.doFinal(message);
     } catch(Exception e) {
       e.printStackTrace();
     }
+
+    return codedMessage;
   }
 
   private void sendBanknotes() {
-    // pobierz klucz publiczny banku
-    getPublicKey();
-    // dla kazdego banknotu
-    for(Banknote greenback : banknotes) {
+    try {
+      // wyslij ile jest banknotow
+      dosBank.writeInt(banknotes.length);
+
+      // dla kazdego banknotu
+      for(Banknote greenback : banknotes) {
       // zakryj go i wyslij do banku
-      try {
         // stworz tablice pomocnicza i wpisz do niej wartosc banknotu, a nastepnie
         // zaszyfruj kluczem publicznym banku
         byte[] temp = hide(greenback.getValueByteArray());
+
         // wyslij do banku
-        dos.writeInt(temp.length);
-        dos.write(temp, 0, temp.length);
+        dosBank.writeInt(temp.length);
+        dosBank.write(temp, 0, temp.length);
 
         // wpisz do tablicy zaszyfrowany nr identyfikacyjny banknotu
         temp = hide(greenback.getBanknoteNumberByteArray());
-        dos.writeInt(temp.length);
-        dos.write(temp, 0, temp.length);
+        dosBank.writeInt(temp.length);
+        dosBank.write(temp, 0, temp.length);
 
         // wez wszystkie lewe hashe, ukryj i wyslij
-        dos.writeInt(greenback.getIdentificationLeftHashes().length);
+        dosBank.writeInt(greenback.getIdentificationLeftHashes().length);
         for(byte[] hash : greenback.getIdentificationLeftHashes()) {
           temp = hide(hash);
-          dos.writeInt(temp.length);
-          dos.write(temp, 0, temp.length);
+          dosBank.writeInt(temp.length);
+          dosBank.write(temp, 0, temp.length);
         }
 
         // wez wszystkie prawie hashe, ukryj i wyslij
         for(byte[] hash : greenback.getIdentificationRightHashes()) {
           temp = hide(hash);
-          dos.writeInt(temp.length);
-          dos.write(temp, 0, temp.length);
+          dosBank.writeInt(temp.length);
+          dosBank.write(temp, 0, temp.length);
         }
-      } catch(Exception e) {
-        e.printStackTrace();
       }
+    } catch(Exception e) {
+      e.printStackTrace();
     }
+    //}
+    System.out.println("[Alice] Wyslano.");
   }
 
   private void getIdentificationNumbers() {
@@ -165,12 +215,25 @@ public class Alice {
       // polacz z Bankiem
       openConnection("socketBank");
 
+      // odbierz klucz publiczny banku
+      dosBank.writeUTF("sendpublickey");
+      getPublicKey();
+
       // wyslij zadanie podpisania banknotow
       dosBank.writeUTF("signbanknote");
 
       // wyslij banknoty
-      dosBank.writeInt(banknotes.size());
+      System.out.println("[Alice] Wysylam banknoty.");
       sendBanknotes();
+
+      // odbierz nr banknotu, ktory bedzie podpisany
+      System.out.println("[Alice] Odbieram nr banknotu, ktory bedzie podpisany.");
+      signedBanknote = disBank.readInt();
+      System.out.println("[Alice] Odebrano.");
+
+      // wyslij dane potrzebne do odkrycia pozostalych banknotow
+      System.out.println("[Alice] Wysylam pozostale dane.");
+      sendHashKeys();
 
       // zamknij polaczenie z Bankiem
       closeConnection("socketBank");
