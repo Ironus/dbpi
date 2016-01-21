@@ -38,8 +38,122 @@ public class Bank {
     }
   }
 
-  private void showBanknotes() {
-    
+  private byte[] generateHash(byte left, byte right, byte[] middle) {
+    byte[] hash = null;
+    try {
+      MessageDigest md = MessageDigest.getInstance("SHA-256");
+
+      byte[] temp = new byte[2 + middle.length];
+      temp[0] = left;
+      temp[1] = right;
+      for(int j = 0; j < middle.length; j++)
+        temp[2 + j] = middle[j];
+
+      // wygeneruj hash
+      md.update(temp);
+      hash = md.digest();
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+
+    return hash;
+  }
+
+  private boolean compare(byte[] _array1, byte[] _array2) {
+    if(Arrays.equals(_array1, _array2))
+      return true;
+    return false;
+  }
+
+  private int[] getIdentificationNumbers(String file, int size) {
+    int[] identificationNumbers = new int[size];
+
+    try {
+      // stworz bufor
+      BufferedReader buffer = new BufferedReader(new FileReader(file));
+      String line;
+      int id = 0, power = 0, currentLine = 0;
+      while((line = buffer.readLine()) != null) {
+        for(int i = line.length() - 1; i >= 0; i--)
+          id += (line.charAt(i) - 48) * (int)Math.pow(2, power++);
+        identificationNumbers[currentLine++] = id;
+        id = 0;
+        power = 0;
+      }
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+
+    return identificationNumbers;
+  }
+
+  private boolean checkBanknotes() {
+    System.out.println("[Bank] Sprawdzam banknoty.");
+    // wez wartosc z pierwszego banknotu
+    int banknotesValue = banknotesList.get(0).getValue();
+    // i porownaj z pozostalymi
+    for(Banknote greenback : banknotesList) {
+      // jesli wartosci sa rozne, to zwroc false
+      if(greenback.getValue() != banknotesValue)
+        return false;
+    }
+
+    // dla kazdego z banknotow
+    for(int i = 0; i < banknotesList.size(); i++) {
+      Banknote firstGreenback = banknotesList.get(i);
+
+      for(int j = i + 1; j < banknotesList.size(); j++) {
+        Banknote secondGreenback = banknotesList.get(j);
+
+        // porownaj nr identyfikacyjne i jesli sie powtarza, to zwroc false
+        if(firstGreenback.getBanknoteNumber() == secondGreenback.getBanknoteNumber())
+          return false;
+      }
+
+      if(i != hiddenBanknote) {
+        // sprawdz zobowiazanie bitowe
+        byte[] hashSKeys = firstGreenback.getHashSKeys();
+        byte[] hashBKeys = firstGreenback.getHashBKeys();
+        byte[][] leftXorByteArray = firstGreenback.getIdentificationLeftXorByteArray();
+        byte[][] leftHashes = firstGreenback.getIdentificationLeftHashes();
+
+        for(int j = 0; j < leftHashes.length; j++) {
+          if(compare(generateHash(hashSKeys[j], hashBKeys[j], leftXorByteArray[j]), leftHashes[j])) {
+            return false;
+          }
+        }
+
+        byte[] hashTKeys = firstGreenback.getHashTKeys();
+        byte[] hashCKeys = firstGreenback.getHashCKeys();
+        byte[][] rightXorByteArray = firstGreenback.getIdentificationRightXorByteArray();
+        byte[][] rightHashes = firstGreenback.getIdentificationRightHashes();
+
+        for(int j = 0; j < rightHashes.length; j++) {
+          if(compare(generateHash(hashTKeys[j], hashCKeys[j], rightXorByteArray[j]), rightHashes[j])) {
+            return false;
+          }
+        }
+
+        // sprawdz ciagi identyfikujace osobe
+        int[] banknoteIdentificationNumbers = new int[firstGreenback.getIdentificationLeftXor().length];
+        for(int j = 0; j < banknoteIdentificationNumbers.length; j++) {
+          banknoteIdentificationNumbers[j] = firstGreenback.getIdentificationLeftXor()[j] ^ firstGreenback.getIdentificationRightXor()[j];
+        }
+
+        int[] personIdentificationNumbers = getIdentificationNumbers("../Alice.ids", banknoteIdentificationNumbers.length);
+
+        for(int j = 0; j < banknoteIdentificationNumbers.length; j++) {
+          System.out.println(banknoteIdentificationNumbers[j] + "\t" + personIdentificationNumbers[j]);
+        }
+
+        if(!Arrays.equals(banknoteIdentificationNumbers, personIdentificationNumbers)) {
+          return false;
+        }
+      }
+    }
+
+    // jesli wszystkie testy przeszly zwroc true
+    return true;
   }
 
   private void receiveHashes() {
@@ -162,6 +276,31 @@ public class Bank {
         }
         greenback.setIdentificationRightHashes(temp2);
 
+        // odkryj lewe XORy
+        for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
+          length = dis.readInt();
+          temp = new byte[length];
+          dis.read(temp, 0, length);
+          temp2[i] = show(temp);
+        }
+        int[] xor = new int[temp2.length];
+        for(int i = 0; i < xor.length; i++) {
+          xor[i] = byteToInt(temp2[i]);
+        }
+        greenback.setIdentificationLeftXor(xor);
+
+        // odkryj prawe XORy
+        for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
+          length = dis.readInt();
+          temp = new byte[length];
+          dis.read(temp, 0, length);
+          temp2[i] = show(temp);
+        }
+        for(int i = 0; i < xor.length; i++) {
+          xor[i] = byteToInt(temp2[i]);
+        }
+        greenback.setIdentificationRightXor(xor);
+
         banknotesList.add(greenback);
       }
     } catch(Exception e) {
@@ -191,11 +330,16 @@ public class Bank {
     // odbierz hashe
     receiveHashes();
 
-    // odkryj banknoty
-    showBanknotes();
+    // sprawdz banknoty
+    if(!checkBanknotes()) {
+      // jesli cos nie tak, to zwroc komunikat i przerwij dzialanie
+      System.out.println("[Bank] Alice probowala oszukac. Przerywam dzialanie.");
+    } else {
+
+    }
   }
 
-  private void checkBanknote() {
+  private void checkSignature() {
 
   }
 
@@ -228,8 +372,8 @@ public class Bank {
             System.out.println("[Bank] Otrzymano zadanie podpisania banknotu.");
             signBanknote();
             break;
-          case "checkbanknote":
-            checkBanknote();
+          case "checksiganture":
+            checkSignature();
             break;
           case "closeconnection":
             isConnectionActive = new Boolean("false");

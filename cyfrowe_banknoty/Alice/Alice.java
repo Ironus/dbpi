@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.util.*;
 import java.security.*;
 import javax.crypto.*;
 import java.security.*;
@@ -129,6 +130,20 @@ public class Alice {
           dosBank.writeInt(temp.length);
           dosBank.write(temp, 0, temp.length);
         }
+
+        // wez wszystkie lewe czesci xora, ukryj i wyslij
+        for(byte[] xor : greenback.getIdentificationLeftXorByteArray()) {
+          temp = hide(xor);
+          dosBank.writeInt(temp.length);
+          dosBank.write(temp, 0, temp.length);
+        }
+
+        // wez wszystkie prawe czesci xora, ukryj i wyslij
+        for(byte[] xor : greenback.getIdentificationRightXorByteArray()) {
+          temp = hide(xor);
+          dosBank.writeInt(temp.length);
+          dosBank.write(temp, 0, temp.length);
+        }
       }
     } catch(Exception e) {
       e.printStackTrace();
@@ -211,6 +226,24 @@ public class Alice {
 
       for(int i = 0; i < 100; i++)
         banknotes[i] = new Banknote(value, identificationNumbers);
+
+      // sprawdz nr identyfikacyjne banknotow
+      ArrayList<Integer> temp = null;
+      do {
+        temp = new ArrayList<Integer>();
+        for(int i = 0; i < 100; i++) {
+          for(int j = i + 1; j < 100; j++) {
+            if(banknotes[i].getBanknoteNumber() == banknotes[j].getBanknoteNumber()) {
+              temp.add(i);
+            }
+          }
+        }
+        // jesli sie powtorzyly, to wylosuj ponownie
+        for(Integer index : temp) {
+          banknotes[index] = new Banknote(value, identificationNumbers);
+        }
+        temp = new ArrayList<Integer>();
+      } while(!temp.isEmpty());
 
       // polacz z Bankiem
       openConnection("socketBank");

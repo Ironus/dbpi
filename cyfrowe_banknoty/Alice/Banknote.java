@@ -91,8 +91,8 @@ public class Banknote implements Serializable {
         xorTemp[3] = (byte)(identificationRightXor[i] >> 0);
 
         temp = new byte[2 + xorTemp.length];
-        temp[0] = hashSKeys[i];
-        temp[1] = hashBKeys[i];
+        temp[0] = hashTKeys[i];
+        temp[1] = hashCKeys[i];
         for(int j = 0; j < xorTemp.length; j++)
           temp[2 + j] = xorTemp[j];
 
@@ -141,6 +141,26 @@ public class Banknote implements Serializable {
     return java.nio.ByteBuffer.allocate(4).putInt(banknoteNumber).array();
   }
 
+  public byte[][] getIdentificationLeftXorByteArray() {
+    byte[][] result = new byte[identificationLeftXor.length][];
+
+    for(int number = 0; number < identificationLeftXor.length; number++) {
+      result[number] = java.nio.ByteBuffer.allocate(4).putInt(identificationLeftXor[number]).array();
+    }
+
+    return result;
+  }
+
+  public byte[][] getIdentificationRightXorByteArray() {
+    byte[][] result = new byte[identificationRightXor.length][];
+
+    for(int number = 0; number < identificationRightXor.length; number++) {
+      result[number] = java.nio.ByteBuffer.allocate(4).putInt(identificationRightXor[number]).array();
+    }
+
+    return result;
+  }
+
   public byte[][] getIdentificationLeftHashes() {
     return identificationLeftHashes;
   }
@@ -186,14 +206,14 @@ public class Banknote implements Serializable {
   }
 
   public void setHashBKeys(byte[] _hashBKeys) {
-    hashSKeys = _hashBKeys;
+    hashBKeys = _hashBKeys;
   }
 
   public void setHashTKeys(byte[] _hashTKeys) {
-    hashSKeys = _hashTKeys;
+    hashTKeys = _hashTKeys;
   }
 
   public void setHashCKeys(byte[] _hashCKeys) {
-    hashSKeys = _hashCKeys;
+    hashCKeys = _hashCKeys;
   }
 }
