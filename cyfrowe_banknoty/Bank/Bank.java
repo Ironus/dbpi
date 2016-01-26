@@ -142,10 +142,6 @@ public class Bank {
 
         int[] personIdentificationNumbers = getIdentificationNumbers("../Alice.ids", banknoteIdentificationNumbers.length);
 
-        for(int j = 0; j < banknoteIdentificationNumbers.length; j++) {
-          System.out.println(banknoteIdentificationNumbers[j] + "\t" + personIdentificationNumbers[j]);
-        }
-
         if(!Arrays.equals(banknoteIdentificationNumbers, personIdentificationNumbers)) {
           return false;
         }
@@ -296,6 +292,7 @@ public class Bank {
           dis.read(temp, 0, length);
           temp2[i] = show(temp);
         }
+        xor = new int[temp2.length];
         for(int i = 0; i < xor.length; i++) {
           xor[i] = byteToInt(temp2[i]);
         }

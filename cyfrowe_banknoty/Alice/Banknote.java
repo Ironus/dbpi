@@ -141,6 +141,14 @@ public class Banknote implements Serializable {
     return java.nio.ByteBuffer.allocate(4).putInt(banknoteNumber).array();
   }
 
+  public int[] getIdentificationLeftXor() {
+    return identificationLeftXor;
+  }
+
+  public int[] getIdentificationRightXor() {
+    return identificationRightXor;
+  }
+
   public byte[][] getIdentificationLeftXorByteArray() {
     byte[][] result = new byte[identificationLeftXor.length][];
 
