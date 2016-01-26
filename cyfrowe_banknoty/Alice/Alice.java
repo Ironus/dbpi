@@ -31,6 +31,69 @@ public class Alice {
 
   private int[] identificationNumbers; // nr identyfikacyjne Alice
 
+  private SignedBanknote greenback; // podpisany banknot
+
+  private void receiveSignedBanknote() {
+    try {
+      // stworz banknot
+      greenback = new SignedBanknote();
+
+      // odkryj wartosc banknotu
+      int length = disBank.readInt();
+      byte[] temp = new byte[length];
+      disBank.read(temp, 0, length);
+      greenback.setValue(temp);
+
+      // odkryj nr banknotu
+      length = disBank.readInt();
+      temp = new byte[length];
+      disBank.read(temp, 0, length);
+      greenback.setBanknoteNumber(temp);
+
+      // odkryj lewe hashe
+      greenback.setNumberOfHashes(disBank.readInt());
+      byte[][]temp2 = new byte[greenback.getNumberOfHashes()][];
+      for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
+        length = disBank.readInt();
+        temp = new byte[length];
+        disBank.read(temp, 0, length);
+        temp2[i] = temp;
+      }
+      greenback.setIdentificationLeftHashes(temp2);
+
+      // odkryj prawe hashe
+      for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
+        length = disBank.readInt();
+        temp = new byte[length];
+        disBank.read(temp, 0, length);
+        temp2[i] = temp;
+      }
+      greenback.setIdentificationRightHashes(temp2);
+
+      // odkryj lewe XORy
+      for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
+        length = disBank.readInt();
+        temp = new byte[length];
+        disBank.read(temp, 0, length);
+        temp2[i] = temp;
+      }
+      greenback.setIdentificationLeftXor(temp2);
+
+      // odkryj prawe XORy
+      for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
+        length = disBank.readInt();
+        temp = new byte[length];
+        disBank.read(temp, 0, length);
+        temp2[i] = temp;
+      }
+      greenback.setIdentificationRightXor(temp2);
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+
+    System.out.println("[Alice] Odebrano.");
+  }
+
   private void sendHashKeys() {
     // stworz zmienna do przetrzymywania tablicy
     byte[] temp = null;
@@ -148,7 +211,7 @@ public class Alice {
     } catch(Exception e) {
       e.printStackTrace();
     }
-    //}
+
     System.out.println("[Alice] Wyslano.");
   }
 
@@ -258,15 +321,11 @@ public class Alice {
       // wyslij banknoty
       System.out.println("[Alice] Wysylam banknoty.");
       sendBanknotes();
-
-      // odbierz nr banknotu, ktory bedzie podpisany
-      System.out.println("[Alice] Odbieram nr banknotu, ktory bedzie podpisany.");
       signedBanknote = disBank.readInt();
-      System.out.println("[Alice] Odebrano.");
-
-      // wyslij dane potrzebne do odkrycia pozostalych banknotow
-      System.out.println("[Alice] Wysylam pozostale dane.");
       sendHashKeys();
+
+      System.out.println("[Alice] Odbieram podpisany banknot.");
+      receiveSignedBanknote();
 
       // zamknij polaczenie z Bankiem
       closeConnection("socketBank");

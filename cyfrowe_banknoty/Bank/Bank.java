@@ -153,8 +153,6 @@ public class Bank {
   }
 
   private void receiveHashes() {
-    System.out.println("[Bank] Odbieram dane potrzebne do odkrycia banknotow.");
-
     for(int i = 0; i < banknotesList.size(); i++) {
       // z wyjatkiem podpisywanego
       if(i != hiddenBanknote) {
@@ -201,8 +199,6 @@ public class Bank {
         banknotesList.set(i, greenback);
       }
     }
-
-    System.out.println("[Bank] Odebrano.");
   }
 
   private byte[] show(byte[] codedMessage) {
@@ -221,6 +217,77 @@ public class Bank {
 
     // zwroc
     return message;
+  }
+
+  private byte[] hide(byte[] message) {
+    // tablica z wynikiem
+    byte[] codedMessage = null;
+
+    // odszyfruj
+    try {
+      cipher = Cipher.getInstance("RSA");
+      cipher.init(Cipher.ENCRYPT_MODE, privateKey);
+
+      codedMessage = cipher.doFinal(message);
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+
+    // zwroc
+    return codedMessage;
+  }
+
+  private void sendBanknote() {
+    System.out.println("[Bank] Podpisuje i wysylam banknot.");
+    try {
+      // dla podpisywanego banknotu
+      Banknote greenback = banknotesList.get(hiddenBanknote);
+      // stworz tablice pomocnicza i wpisz do niej wartosc banknotu, a nastepnie
+      // zaszyfruj kluczem prywatnym banku
+      byte[] temp = hide(greenback.getValueByteArray());
+
+      // wyslij
+      dos.writeInt(temp.length);
+      dos.write(temp, 0, temp.length);
+
+      // wpisz do tablicy zaszyfrowany nr identyfikacyjny banknotu
+      temp = hide(greenback.getBanknoteNumberByteArray());
+      dos.writeInt(temp.length);
+      dos.write(temp, 0, temp.length);
+
+      // wez wszystkie lewe hashe, ukryj i wyslij
+      dos.writeInt(greenback.getIdentificationLeftHashes().length);
+      for(byte[] hash : greenback.getIdentificationLeftHashes()) {
+        temp = hide(hash);
+        dos.writeInt(temp.length);
+        dos.write(temp, 0, temp.length);
+      }
+
+      // wez wszystkie prawie hashe, ukryj i wyslij
+      for(byte[] hash : greenback.getIdentificationRightHashes()) {
+        temp = hide(hash);
+        dos.writeInt(temp.length);
+        dos.write(temp, 0, temp.length);
+      }
+
+      // wez wszystkie lewe czesci xora, ukryj i wyslij
+      for(byte[] xor : greenback.getIdentificationLeftXorByteArray()) {
+        temp = hide(xor);
+        dos.writeInt(temp.length);
+        dos.write(temp, 0, temp.length);
+      }
+
+      // wez wszystkie prawe czesci xora, ukryj i wyslij
+      for(byte[] xor : greenback.getIdentificationRightXorByteArray()) {
+        temp = hide(xor);
+        dos.writeInt(temp.length);
+        dos.write(temp, 0, temp.length);
+      }
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+
+    System.out.println("[Bank] Wyslano.");
   }
 
   private int byteToInt(byte[] array) {
@@ -312,10 +379,8 @@ public class Bank {
     receiveBanknotes();
 
     // wybierz, ktory banknot podpisac
-    System.out.println("[Bank] Wybieram banknot do podpisu.");
     Random randomGenerator = new Random();
     int hiddenBanknote = randomGenerator.nextInt(banknotesList.size());
-    System.out.println("[Bank] Wybrano banknot nr " + (hiddenBanknote + 1) + ". Odyslam nr banknotu.");
 
     // odeslij wylosowany banknot
     try {

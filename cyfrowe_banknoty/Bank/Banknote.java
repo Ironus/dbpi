@@ -130,8 +130,16 @@ public class Banknote implements Serializable {
     return value;
   }
 
+  public byte[] getValueByteArray() {
+    return java.nio.ByteBuffer.allocate(4).putInt(value).array();
+  }
+
   public int getBanknoteNumber() {
     return banknoteNumber;
+  }
+
+  public byte[] getBanknoteNumberByteArray() {
+    return java.nio.ByteBuffer.allocate(4).putInt(banknoteNumber).array();
   }
 
   public int getNumberOfHashes() {
