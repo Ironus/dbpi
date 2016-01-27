@@ -33,24 +33,84 @@ public class Alice {
 
   private SignedBanknote greenback; // podpisany banknot
 
+  private void sendSignedBanknote() {
+    banknote = banknotes[signedBanknote];
+
+    try {
+      // wyslij do wartosc banknotu
+      dosShop.writeInt(banknote.getValue());
+
+      // wyslij nr identyfikacyjny banknotu
+      dosShop.writeInt(banknote.getBanknoteNumber());
+
+      // wyslij lewe hashe
+      dosShop.writeInt(banknote.getIdentificationLeftHashes().length);
+      for(byte[] hash : banknote.getIdentificationLeftHashes()) {
+        dosShop.writeInt(hash.length);
+        dosShop.write(hash, 0, hash.length);
+      }
+
+      // wyslij prawie hashe
+      for(byte[] hash : banknote.getIdentificationRightHashes()) {
+        dosShop.writeInt(hash.length);
+        dosShop.write(hash, 0, hash.length);
+      }
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  private void sendSignature() {
+    try {
+      // wyslij wartosc
+      byte[] temp = greenback.getValue();
+      dosShop.writeInt(temp.length);
+      dosShop.write(temp, 0, temp.length);
+
+      // wyslij nr identyfikacyjny banknotu
+      temp = greenback.getBanknoteNumber();
+      dosShop.writeInt(temp.length);
+      dosShop.write(temp, 0, temp.length);
+
+      // wez wszystkie lewe hashe, ukryj i wyslij
+      dosShop.writeInt(greenback.getIdentificationLeftHashes().length);
+      for(byte[] hash : greenback.getIdentificationLeftHashes()) {
+        temp = hash;
+        dosShop.writeInt(temp.length);
+        dosShop.write(temp, 0, temp.length);
+      }
+
+      // wez wszystkie prawie hashe, ukryj i wyslij
+      for(byte[] hash : greenback.getIdentificationRightHashes()) {
+        temp = hash;
+        dosShop.writeInt(temp.length);
+        dosShop.write(temp, 0, temp.length);
+      }
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+
+    System.out.println("[Alice] Wyslano.");
+  }
+
   private void receiveSignedBanknote() {
     try {
       // stworz banknot
       greenback = new SignedBanknote();
 
-      // odkryj wartosc banknotu
+      // odbierz wartosc banknotu
       int length = disBank.readInt();
       byte[] temp = new byte[length];
       disBank.read(temp, 0, length);
       greenback.setValue(temp);
 
-      // odkryj nr banknotu
+      // odbierz nr banknotu
       length = disBank.readInt();
       temp = new byte[length];
       disBank.read(temp, 0, length);
       greenback.setBanknoteNumber(temp);
 
-      // odkryj lewe hashe
+      // odbierz lewe hashe
       greenback.setNumberOfHashes(disBank.readInt());
       byte[][]temp2 = new byte[greenback.getNumberOfHashes()][];
       for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
@@ -61,7 +121,7 @@ public class Alice {
       }
       greenback.setIdentificationLeftHashes(temp2);
 
-      // odkryj prawe hashe
+      // odbierz prawe hashe
       for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
         length = disBank.readInt();
         temp = new byte[length];
@@ -69,24 +129,6 @@ public class Alice {
         temp2[i] = temp;
       }
       greenback.setIdentificationRightHashes(temp2);
-
-      // odkryj lewe XORy
-      for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
-        length = disBank.readInt();
-        temp = new byte[length];
-        disBank.read(temp, 0, length);
-        temp2[i] = temp;
-      }
-      greenback.setIdentificationLeftXor(temp2);
-
-      // odkryj prawe XORy
-      for(int i = 0; i < greenback.getNumberOfHashes(); i++) {
-        length = disBank.readInt();
-        temp = new byte[length];
-        disBank.read(temp, 0, length);
-        temp2[i] = temp;
-      }
-      greenback.setIdentificationRightXor(temp2);
     } catch(Exception e) {
       e.printStackTrace();
     }
@@ -274,8 +316,8 @@ public class Alice {
     try {
       addrBank = _addrBank;
       portBank = _portBank;
-      addrBank = _addrShop;
-      portBank = _portShop;
+      addrShop = _addrShop;
+      portShop = _portShop;
 
       // pobierz swoje identyfikatory
       System.out.println("[Alice] Pobieram identyfikatory.");
@@ -330,6 +372,16 @@ public class Alice {
       // zamknij polaczenie z Bankiem
       closeConnection("socketBank");
 
+      // polacz sie ze Sklepem
+      openConnection("socketMerchant");
+
+      // wyslij banknot do Sklepu
+      System.out.println("[Alice] Wysylam banknot  i podpis do sklepu");
+      sendSignedBanknote();
+      sendSignature();
+
+      // zamknij polaczenie ze Sklepem
+      closeConnection("socketShop");
     } catch(Exception e) {
       e.printStackTrace();
     }

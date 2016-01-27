@@ -269,20 +269,6 @@ public class Bank {
         dos.writeInt(temp.length);
         dos.write(temp, 0, temp.length);
       }
-
-      // wez wszystkie lewe czesci xora, ukryj i wyslij
-      for(byte[] xor : greenback.getIdentificationLeftXorByteArray()) {
-        temp = hide(xor);
-        dos.writeInt(temp.length);
-        dos.write(temp, 0, temp.length);
-      }
-
-      // wez wszystkie prawe czesci xora, ukryj i wyslij
-      for(byte[] xor : greenback.getIdentificationRightXorByteArray()) {
-        temp = hide(xor);
-        dos.writeInt(temp.length);
-        dos.write(temp, 0, temp.length);
-      }
     } catch(Exception e) {
       e.printStackTrace();
     }
