@@ -178,14 +178,14 @@ public class Bank {
           // wpisz je do banknotu
           greenback.setHashBKeys(temp);
 
-          // wyslij hashe T
+          // odbierz hashe T
           length = dis.readInt();
           temp = new byte[length];
           dis.read(temp, 0, length);
           // wpisz je do banknotu
           greenback.setHashTKeys(temp);
 
-          // wyslij hashe C
+          // odbierz hashe C
           length = dis.readInt();
           temp = new byte[length];
           dis.read(temp, 0, length);
