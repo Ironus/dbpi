@@ -397,7 +397,7 @@ public class Bank {
       // jesli cos nie tak, to zwroc komunikat i przerwij dzialanie
       System.out.println("[Bank] Alice probowala oszukac. Przerywam dzialanie.");
     } else {
-
+      sendBanknote();
     }
   }
 
@@ -479,12 +479,15 @@ public class Bank {
       return;
     }
     try {
-      // utworz Alice
-      Bank bank = new Bank(Integer.parseInt(args[0]));
-      System.out.println("[Bank] Czekam na polaczenie...");
-      //przelacz Alice na nasluchiwanie
-      bank.startListening();
-      bank.closeServer();
+      while(true) {
+        // utworz Bank
+        Bank bank = new Bank(Integer.parseInt(args[0]));
+        System.out.println("[Bank] Czekam na polaczenie...");
+        //przelacz Bank na nasluchiwanie
+
+        bank.startListening();
+        bank.closeServer();
+      }
     } catch (NumberFormatException exNF) {
       System.out.println("Zly format portu.");
     }
