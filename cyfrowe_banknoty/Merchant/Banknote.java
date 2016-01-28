@@ -218,6 +218,14 @@ public class Banknote implements Serializable {
     identificationRightHashes = _identificationRightHashes;
   }
 
+  public void setIdentificationLeftXor(int[] _identificationLeftXor) {
+    identificationLeftXor = _identificationLeftXor;
+  }
+
+  public void setIdentificationRightXor(int[] _identificationRightXor) {
+    identificationRightXor = _identificationRightXor;
+  }
+
   public void setHashSKeys(byte[] _hashSKeys) {
     hashSKeys = _hashSKeys;
   }

@@ -376,9 +376,57 @@ public class Alice {
       openConnection("socketMerchant");
 
       // wyslij banknot do Sklepu
-      System.out.println("[Alice] Wysylam banknot  i podpis do sklepu");
+      System.out.println("[Alice] Wysylam banknot i podpis do sklepu.");
       sendSignedBanknote();
       sendSignature();
+
+      // odbierz decyzje
+      if(disShop.readInt() == 1) {
+        System.out.println("[Alice] Sygnatura zostala zaakceptowana.");
+        System.out.println("[Alice] Rozpoczynam przesylanie xor'ow.");
+
+        for(int i = 0; i < banknote.getIdentificationLeftHashes().length; i++) {
+          // odbierz, ktory wyslac
+          int decision = disShop.readInt();
+
+          if(decision == 1) {
+            // wyslij prawego xora
+            dosShop.writeInt(banknote.getIdentificationRightXor().length);
+            for(int j = 0; j < banknote.getIdentificationRightXor().length; j++) {
+              dosShop.writeInt(banknote.getIdentificationRightXor()[j]);
+            }
+
+            // wyslij prawe hash key'e
+            dosShop.writeInt(banknote.getHashTKeys().length);
+            dosShop.write(banknote.getHashTKeys(), 0, banknote.getHashTKeys().length);
+
+            dosShop.writeInt(banknote.getHashCKeys().length);
+            dosShop.write(banknote.getHashCKeys(), 0, banknote.getHashCKeys().length);
+          } else {
+            // wyslij prawego xora
+            dosShop.writeInt(banknote.getIdentificationLeftXor().length);
+            for(int j = 0; j < banknote.getIdentificationLeftXor().length; j++) {
+              dosShop.writeInt(banknote.getIdentificationLeftXor()[j]);
+            }
+
+            // wyslij prawe hash key'e
+            dosShop.writeInt(banknote.getHashSKeys().length);
+            dosShop.write(banknote.getHashSKeys(), 0, banknote.getHashSKeys().length);
+
+            dosShop.writeInt(banknote.getHashBKeys().length);
+            dosShop.write(banknote.getHashBKeys(), 0, banknote.getHashBKeys().length);
+          }
+        }
+
+        // czekaj na decyzje czy banknot zaakceptowany
+        if(disShop.readInt() == 1) {
+          System.out.println("[Alice] Banknot zostal zaakceptowany.");
+        } else {
+          System.out.println("[Alice] Banknot nie zostal zaakceptowany.");
+        }
+      } else {
+        System.out.println("[Alice] Sygnatura nie zostala zaakceptowana.");
+      }
 
       // zamknij polaczenie ze Sklepem
       closeConnection("socketShop");

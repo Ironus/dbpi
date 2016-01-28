@@ -23,6 +23,11 @@ public class Bank {
 
   private int hiddenBanknote; // nr banknotu do podpisania
 
+  private SignedBanknote signedBanknote; // sygnatura banknotu
+  private Banknote banknoteToCheck; // banknot do sprawdzenia
+
+  private ArrayList<Banknote> usedBanknotes;
+
   private void generateKeys() {
     try {
       // stworz generator kluczy i wygeneruj parę kluczy
@@ -281,6 +286,85 @@ public class Bank {
     return java.nio.ByteBuffer.wrap(array).getInt();
   }
 
+  private void receiveBanknoteToCheck() {
+    try {
+      // stworz banknot
+      banknoteToCheck = new Banknote();
+
+      // odbierz wartosc banknotu
+      banknoteToCheck.setValue(dis.readInt());
+
+      // odbierz nr banknotu
+      banknoteToCheck.setBanknoteNumber(dis.readInt());
+
+      // odbierz lewe hashe
+      banknoteToCheck.setNumberOfHashes(dis.readInt());
+      byte[][]temp2 = new byte[banknoteToCheck.getNumberOfHashes()][];
+      int length;
+      byte[] temp;
+      for(int i = 0; i < banknoteToCheck.getNumberOfHashes(); i++) {
+        length = dis.readInt();
+        temp = new byte[length];
+        dis.read(temp, 0, length);
+        temp2[i] = temp;
+      }
+        banknoteToCheck.setIdentificationLeftHashes(temp2);
+
+      // odkryj prawe hashe
+      for(int i = 0; i < banknoteToCheck.getNumberOfHashes(); i++) {
+        length = dis.readInt();
+        temp = new byte[length];
+        dis.read(temp, 0, length);
+        temp2[i] = temp;
+      }
+      banknoteToCheck.setIdentificationRightHashes(temp2);
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+
+  }
+
+  private void receiveSignature() {
+    try {
+      // stworz banknot
+      signedBanknote = new SignedBanknote();
+
+      // odbierz wartosc banknotu
+      int length = dis.readInt();
+      byte[] temp = new byte[length];
+      dis.read(temp, 0, length);
+      signedBanknote.setValue(temp);
+
+      // odbierz nr banknotu
+      length = dis.readInt();
+      temp = new byte[length];
+      dis.read(temp, 0, length);
+      signedBanknote.setBanknoteNumber(temp);
+
+      // odbierz lewe hashe
+      signedBanknote.setNumberOfHashes(dis.readInt());
+      byte[][]temp2 = new byte[signedBanknote.getNumberOfHashes()][];
+      for(int i = 0; i < signedBanknote.getNumberOfHashes(); i++) {
+        length = dis.readInt();
+        temp = new byte[length];
+        dis.read(temp, 0, length);
+        temp2[i] = temp;
+      }
+      signedBanknote.setIdentificationLeftHashes(temp2);
+
+      // odbierz prawe hashe
+      for(int i = 0; i < signedBanknote.getNumberOfHashes(); i++) {
+        length = dis.readInt();
+        temp = new byte[length];
+        dis.read(temp, 0, length);
+        temp2[i] = temp;
+      }
+      signedBanknote.setIdentificationRightHashes(temp2);
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+  }
+
   private void receiveBanknotes() {
     System.out.println("[Bank] Odbieram banknoty.");
     try {
@@ -387,8 +471,50 @@ public class Bank {
     }
   }
 
-  private void checkSignature() {
+  private boolean storeBanknote() {
+    // odbierz sygnature
+    receiveSignature();
+    // odbierz banknot
+    receiveBanknoteToCheck();
 
+    if(usedBanknotes.contains(banknoteToCheck)) {
+      return false;
+    } else {
+      usedBanknotes.add(banknoteToCheck);
+      return true;
+    }
+  }
+
+  private boolean checkSignature() {
+    // odbierz sygnature
+    receiveSignature();
+    // odbierz banknot
+    receiveBanknoteToCheck();
+
+    // porownaj podpis wartosci
+    if(compare(hide(banknoteToCheck.getValueByteArray()), signedBanknote.getValue())) {
+      return false;
+    }
+    // porownaj podpis nr banknotu
+    if(compare(hide(banknoteToCheck.getBanknoteNumberByteArray()), signedBanknote.getBanknoteNumber())) {
+      return false;
+    }
+
+    // porownaj hashe
+    byte[][] leftHashesToCheck = banknoteToCheck.getIdentificationLeftHashes();
+    byte[][] rightHashesToCheck = banknoteToCheck.getIdentificationRightHashes();
+    byte[][] signedLeftHashesToCheck = signedBanknote.getIdentificationLeftHashes();
+    byte[][] signedRightHashesToCheck = signedBanknote.getIdentificationRightHashes();
+
+    for(int i = 0; i < leftHashesToCheck.length; i++) {
+      if(compare(hide(leftHashesToCheck[i]), signedLeftHashesToCheck[i])) {
+        return false;
+      }
+      if(compare(hide(rightHashesToCheck[i]), signedRightHashesToCheck[i])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public void closeServer() {
@@ -409,7 +535,8 @@ public class Bank {
       // dopoki polaczenie aktywne przyjmuj zadania
       Boolean isConnectionActive = new Boolean("true");
       while(isConnectionActive.booleanValue()) {
-        switch(dis.readUTF().toLowerCase()) {
+        String task = dis.readUTF().toLowerCase();
+        switch(task) {
           case "sendpublickey":
             System.out.println("[Bank] Wysylam klucz publiczny.");
             String publicKeyString = Base64.getEncoder().encodeToString(publicKey.getEncoded());
@@ -420,8 +547,20 @@ public class Bank {
             System.out.println("[Bank] Otrzymano zadanie podpisania banknotu.");
             signBanknote();
             break;
-          case "checksiganture":
-            checkSignature();
+          case "checksignature":
+            if(checkSignature()) {
+              dos.writeInt(1);
+            } else {
+              dos.writeInt(0);
+            }
+            break;
+          case "storebanknote":
+            System.out.println("[Bank] Otrzymano zadanie zdeponowania banknotu.");
+            if(storeBanknote()) {
+              dos.writeInt(1);
+            } else {
+              dos.writeInt(0);
+            }
             break;
           case "closeconnection":
             isConnectionActive = new Boolean("false");
@@ -436,13 +575,9 @@ public class Bank {
       // zamknij gniazdo
       socket.close();
 
-    } /*catch(EOFException exEOF) {
-      System.out.println("Strumien wejscia jest krotszy niz 4B.");
-    }*/ catch(IOException exIO) {
+    } catch(IOException exIO) {
       System.out.println("Blad strumienia.");
-    } /*catch(InterruptedException exIn) {
-      System.out.println("Watek zostal przerwany.");
-    }*/
+    }
   }
 
   public Bank(int _port) {
@@ -452,6 +587,7 @@ public class Bank {
       listeningSocket= new ServerSocket(port);
       // stworz liste banknotow
       banknotesList = new ArrayList<Banknote>();
+      usedBanknotes = new ArrayList<Banknote>();
       generateKeys();
     } catch(IOException ex) {
       System.out.println("Blad tworzenia gniazda do nasluchu.");

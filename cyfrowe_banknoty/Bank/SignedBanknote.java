@@ -3,6 +3,7 @@ import java.util.Random;
 import java.security.MessageDigest;
 
 public class SignedBanknote implements Serializable {
+  private int numberOfHashes;
   private byte[] value; // kwota na banknocie
   private byte[] banknoteNumber; // nr identyfikacyjny banknotu
   private byte[][] identificationLeftXor; // niejawna lewa strona nr ID Alice
@@ -12,6 +13,10 @@ public class SignedBanknote implements Serializable {
 
   public SignedBanknote() {
 
+  }
+
+  public int getNumberOfHashes() {
+    return numberOfHashes;
   }
 
   public byte[] getValue() {
@@ -36,6 +41,10 @@ public class SignedBanknote implements Serializable {
 
   public byte[][] getIdentificationRightHashes() {
     return identificationRightHashes;
+  }
+
+  public void setNumberOfHashes(int _numberOfHashes) {
+    numberOfHashes = _numberOfHashes;
   }
 
   public void setValue(byte[] _value) {
